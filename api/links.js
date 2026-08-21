@@ -90,6 +90,30 @@ function isValidUrl(urlString) {
   }
 }
 
+async function parseRequestBody(req) {
+  if (req.headers["content-type"]?.includes("application/json")) {
+    try {
+      let body = "";
+      return await new Promise((resolve, reject) => {
+        req.on("data", (chunk) => {
+          body += chunk.toString();
+        });
+        req.on("end", () => {
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(e);
+          }
+        });
+        req.on("error", reject);
+      });
+    } catch (error) {
+      throw new Error("Invalid JSON in request body");
+    }
+  }
+  return req.body || {};
+}
+
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -102,7 +126,15 @@ module.exports = async (req, res) => {
 
   try {
     if (req.method === "POST") {
-      const { slug: rawSlug, url: rawUrl } = req.body;
+      let body = {};
+      try {
+        body = await parseRequestBody(req);
+      } catch (e) {
+        res.status(400).json({ error: "Invalid request body" });
+        return;
+      }
+
+      const { slug: rawSlug, url: rawUrl } = body;
       const slug = normalizeSlug(rawSlug);
       const url = String(rawUrl || "").trim();
 
@@ -113,6 +145,11 @@ module.exports = async (req, res) => {
 
       if (!isValidUrl(url)) {
         res.status(400).json({ error: "Please add valid URL." });
+        return;
+      }
+
+      if (!process.env.GITHUB_TOKEN) {
+        res.status(500).json({ error: "GitHub token not configured" });
         return;
       }
 
@@ -129,7 +166,7 @@ module.exports = async (req, res) => {
       res.status(405).json({ error: "Method not allowed" });
     }
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Error:", error.message);
     res
       .status(500)
       .json({ error: error.message || "Something went wrong." });
