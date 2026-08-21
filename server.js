@@ -62,6 +62,27 @@ function readBody(req) {
   });
 }
 
+function isValidUrl(urlString) {
+  try {
+    // If the URL doesn't start with a protocol, add https://
+    const urlToTest = /^https?:\/\//i.test(urlString) ? urlString : `https://${urlString}`;
+    const url = new URL(urlToTest);
+    
+    // Check if it has a valid hostname with at least a dot or is localhost
+    const hostname = url.hostname;
+    if (!hostname) return false;
+    
+    // Allow localhost without a dot, otherwise require at least one dot for a domain
+    if (hostname !== 'localhost' && !hostname.includes('.')) {
+      return false;
+    }
+    
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function createLink(req, res) {
   const body = await readBody(req);
   const form = new URLSearchParams(body);
@@ -70,6 +91,11 @@ async function createLink(req, res) {
 
   if (!slug || !url) {
     send(res, 400, "Short text and URL are required.");
+    return true;
+  }
+
+  if (!isValidUrl(url)) {
+    send(res, 400, "Please add valid URL.");
     return true;
   }
 
@@ -82,7 +108,7 @@ async function createLink(req, res) {
     res.writeHead(302, { location: "/" });
     res.end();
   } catch {
-    send(res, 400, "Please enter a valid URL.");
+    send(res, 400, "Please add valid URL.");
   }
 
   return true;
