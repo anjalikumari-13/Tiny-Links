@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "@octokit/rest": "^19.0.0"
   }
 }

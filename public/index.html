@@ -94,6 +94,24 @@
         color: #8f3d63;
         font-weight: bold;
       }
+
+      .error {
+        color: #d32f2f;
+        margin-top: 10px;
+        padding: 10px;
+        background: #ffebee;
+        border-radius: 4px;
+        display: none;
+      }
+
+      .success {
+        color: #388e3c;
+        margin-top: 10px;
+        padding: 10px;
+        background: #e8f5e9;
+        border-radius: 4px;
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -101,7 +119,7 @@
       <h1>Tiny Links</h1>
       <p class="subtitle">A small place to keep neat links for resumes, bios, and anywhere a long URL feels messy.</p>
 
-      <form method="post" action="/add">
+      <form id="linkForm">
         <p>
           <label for="slug">What should the link say?</label>
           <input id="slug" name="slug" placeholder="github" required />
@@ -115,12 +133,77 @@
         <button type="submit">Add link</button>
       </form>
 
+      <div id="error" class="error"></div>
+      <div id="success" class="success"></div>
+
       <section class="links">
         <h2>My saved links</h2>
-        <ul>
-          {{links}}
+        <ul id="linksList">
+          <li>Loading...</li>
         </ul>
       </section>
     </main>
+
+    <script>
+      async function loadLinks() {
+        try {
+          const response = await fetch("/api/links");
+          const links = await response.json();
+          const linksList = document.getElementById("linksList");
+
+          if (Object.keys(links).length === 0) {
+            linksList.innerHTML = "<li>No links yet.</li>";
+          } else {
+            linksList.innerHTML = Object.entries(links)
+              .map(
+                ([slug, url]) =>
+                  `<li><a href="/api/redirect?slug=${encodeURIComponent(slug)}">/s/${slug}</a> - ${url}</li>`
+              )
+              .join("");
+          }
+        } catch (error) {
+          console.error("Error loading links:", error);
+          document.getElementById("linksList").innerHTML = "<li>Error loading links</li>";
+        }
+      }
+
+      document.getElementById("linkForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const slug = document.getElementById("slug").value;
+        const url = document.getElementById("url").value;
+        const errorDiv = document.getElementById("error");
+        const successDiv = document.getElementById("success");
+
+        errorDiv.style.display = "none";
+        successDiv.style.display = "none";
+
+        try {
+          const response = await fetch("/api/links", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ slug, url }),
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            errorDiv.textContent = result.error || "Error creating link";
+            errorDiv.style.display = "block";
+            return;
+          }
+
+          successDiv.textContent = `Link created! ${slug} → ${result.url}`;
+          successDiv.style.display = "block";
+          document.getElementById("linkForm").reset();
+          loadLinks();
+        } catch (error) {
+          errorDiv.textContent = "Error creating link: " + error.message;
+          errorDiv.style.display = "block";
+        }
+      });
+
+      loadLinks();
+    </script>
   </body>
 </html>
