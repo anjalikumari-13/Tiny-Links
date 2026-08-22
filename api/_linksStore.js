@@ -108,7 +108,7 @@ async function readLinksFromGitHub() {
 }
 
 async function getGitHubFile(token) {
-  const encodedPath = encodeURIComponent(DATA_FILE_PATH);
+  const encodedPath = DATA_FILE_PATH.split("/").map(encodeURIComponent).join("/");
   const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${encodedPath}?ref=${encodeURIComponent(REPO_BRANCH)}`;
   return requestJson(url, {
     headers: {
@@ -137,7 +137,7 @@ async function writeLinksToGitHub(links) {
   }
 
   const content = Buffer.from(`${JSON.stringify(links, null, 2)}\n`, "utf8").toString("base64");
-  const encodedPath = encodeURIComponent(DATA_FILE_PATH);
+  const encodedPath = DATA_FILE_PATH.split("/").map(encodeURIComponent).join("/");
   const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${encodedPath}`;
 
   await requestJson(url, {
