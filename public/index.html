@@ -95,22 +95,22 @@
         font-weight: bold;
       }
 
-      .error {
-        color: #d32f2f;
+      .error,
+      .success {
         margin-top: 10px;
         padding: 10px;
-        background: #ffebee;
         border-radius: 4px;
         display: none;
       }
 
+      .error {
+        color: #d32f2f;
+        background: #ffebee;
+      }
+
       .success {
         color: #388e3c;
-        margin-top: 10px;
-        padding: 10px;
         background: #e8f5e9;
-        border-radius: 4px;
-        display: none;
       }
     </style>
   </head>
@@ -145,6 +145,15 @@
     </main>
 
     <script>
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
       async function loadLinks() {
         try {
           const response = await fetch("/api/links");
@@ -153,22 +162,22 @@
 
           if (Object.keys(links).length === 0) {
             linksList.innerHTML = "<li>No links yet.</li>";
-          } else {
-            linksList.innerHTML = Object.entries(links)
-              .map(
-                ([slug, url]) =>
-                  `<li><a href="/api/redirect?slug=${encodeURIComponent(slug)}">/s/${slug}</a> - ${url}</li>`
-              )
-              .join("");
+            return;
           }
+
+          linksList.innerHTML = Object.entries(links)
+            .map(([slug, url]) => {
+              const safeSlug = encodeURIComponent(slug);
+              return `<li><a href="/s/${safeSlug}">/s/${escapeHtml(slug)}</a> - ${escapeHtml(url)}</li>`;
+            })
+            .join("");
         } catch (error) {
-          console.error("Error loading links:", error);
-          document.getElementById("linksList").innerHTML = "<li>Error loading links</li>";
+          document.getElementById("linksList").innerHTML = "<li>Error loading links.</li>";
         }
       }
 
-      document.getElementById("linkForm").addEventListener("submit", async (e) => {
-        e.preventDefault();
+      document.getElementById("linkForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
 
         const slug = document.getElementById("slug").value;
         const url = document.getElementById("url").value;
@@ -181,24 +190,23 @@
         try {
           const response = await fetch("/api/links", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "content-type": "application/json" },
             body: JSON.stringify({ slug, url }),
           });
-
           const result = await response.json();
 
           if (!response.ok) {
-            errorDiv.textContent = result.error || "Error creating link";
+            errorDiv.textContent = result.error || "Error creating link.";
             errorDiv.style.display = "block";
             return;
           }
 
-          successDiv.textContent = `Link created! ${slug} → ${result.url}`;
+          successDiv.textContent = `Link created: /s/${result.slug}`;
           successDiv.style.display = "block";
           document.getElementById("linkForm").reset();
           loadLinks();
         } catch (error) {
-          errorDiv.textContent = "Error creating link: " + error.message;
+          errorDiv.textContent = error.message || "Error creating link.";
           errorDiv.style.display = "block";
         }
       });
